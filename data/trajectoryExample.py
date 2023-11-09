@@ -25,6 +25,7 @@ if __name__ == "__main__":
     print(trajectory)
     print(trajectory.parameters[0].extrinsic)
     print(np.asarray(trajectory.parameters[0].extrinsic))
+
     for i in range(5):
         im1 = o3d.io.read_image(redwood_rgbd.depth_paths[i])
         im2 = o3d.io.read_image(redwood_rgbd.color_paths[i])

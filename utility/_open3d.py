@@ -7,6 +7,11 @@ vec2d = o3d.utility.Vector2dVector
 
 
 def NormalVizualizer(geometrylist , _ui=0):
+    """
+    This function shows the geometries in open3d visualizer
+    :param geometrylist: list containing all the geometries
+    :param _ui: enables with UI
+    """
     return o3d.visualization.draw_geometries(geometrylist) if not _ui else o3d.visualization.draw(geometrylist , show_ui=1)
 
 def load(path , mode='pcd'):
@@ -15,6 +20,13 @@ def load(path , mode='pcd'):
     else : return None
 
 def _tolineset(points=None , lines=None , colors=np.asarray([1,0,0])):
+    """
+    create linsets
+    :param points:
+    :param lines:
+    :param colors:
+    :return:
+    """
     lineset = o3d.geometry.LineSet()
     if points is None:return lineset
     lineset.points = vec3d(np.asarray(points))
@@ -28,11 +40,13 @@ def _tolineset(points=None , lines=None , colors=np.asarray([1,0,0])):
 
 
 def _drawPoses(campoints):
+    """plots the poseses"""
     nline = len(campoints) - 1
     col = np.column_stack((np.arange(0, nline), np.arange(nline, 0, -1), np.zeros(nline))) / nline
     return _tolineset(points=campoints , colors=col , lines=[[i , i + 1] for i in range(nline)])
 
 def _topcd(points=None, colors= np.asarray([0,0,1]), normals=None, filepath=None):
+    """creates the pointcloud from points"""
     pcd = o3d.geometry.PointCloud()
     if points is None: return pcd
     pcd.points = o3d.utility.Vector3dVector(np.asarray(points))
@@ -46,6 +60,7 @@ def _topcd(points=None, colors= np.asarray([0,0,1]), normals=None, filepath=None
 
 
 def _tomesh(vertices= None , triangles = None ,normals=False, colors = np.asarray([0,1,0]),anticlock=0,filepath=None):
+    """creates mesh from vertices and triangles"""
     mesh = o3d.geometry.TriangleMesh()
     if vertices is None: return mesh
     mesh.vertices = o3d.utility.Vector3dVector(np.asarray(vertices))
@@ -63,6 +78,7 @@ def _tomesh(vertices= None , triangles = None ,normals=False, colors = np.asarra
     return mesh
 
 def mesh2pcd(mesh , samples=10**6):
+    """converts pointcloud from mesh using unifrom sampling of points"""
     maxpoints = max(len(mesh.vertices) , samples)
     pcd = mesh.sample_points_uniformly(maxpoints , True)
     pcd.orient_normals_towards_camera_location(pcd.get_center())
