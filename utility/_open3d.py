@@ -4,7 +4,9 @@ import trimesh as tm
 import os
 
 vec3d = o3d.utility.Vector3dVector
+vec3i = o3d.utility.Vector3iVector
 vec2d = o3d.utility.Vector2dVector
+vec2i = o3d.utility.Vector2iVector
 
 
 def NormalVizualizer(geometrylist , _ui=0):
