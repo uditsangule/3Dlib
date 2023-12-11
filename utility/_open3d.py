@@ -1,5 +1,6 @@
 import open3d as o3d
 import numpy as np
+import trimesh as tm
 import os
 
 vec3d = o3d.utility.Vector3dVector
