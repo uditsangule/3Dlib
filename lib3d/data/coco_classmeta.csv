@@ -1,0 +1,118 @@
+Class_ID,Class,Parent,Parent_ID,Category,color,flag_infojson,flag_objremoval,Coco_Classes
+0,person,person,0,person,#d53400,0,1,0
+1,bicycle,bike,1,vehicle,#01cd0a,1,1,1
+2,car,car,2,vehicle,#3400b6,1,1,2
+3,motorcycle,bike,1,vehicle,#01cd0a,1,1,3
+10,fire hydrant,firehydrant,3,equipment,#cd3b40,1,1,10
+13,bench,chair,4,furniture,#0102cd,1,1,13
+14,bird,bird,5,bird,#390034,0,1,14
+15,cat,cat,6,animal,#cd4635,0,1,15
+16,dog,dog,7,animal,#012bcd,0,1,16
+17,horse,horse,8,animal,#733400,0,1,17
+18,sheep,sheep,9,animal,#7c01cd,0,1,18
+19,cow,cow,10,animal,#2bcd01,0,1,19
+24,backpack,bag,11,luggage,#cd0034,0,1,24
+25,umbrella,umbrella,12,object,#1601cd,0,1,25
+26,handbag,bag,11,luggage,#cd0034,0,1,26
+27,tie,tie,13,object,#0201cd,0,1,27
+28,suitcase,bag,11,luggage,#cd0034,0,1,28
+29,frisbee,disk,14,sport,#0135cd,0,1,29
+30,skis,board,15,sport,#993400,0,1,30
+31,snowboard,board,15,sport,#993400,1,1,31
+32,sports ball,ball,16,sport,#3b01cd,0,1,32
+33,kite,disk,14,sport,#0135cd,0,1,33
+34,baseball bat,bat,17,sport,#cd8b0d,0,1,34
+35,baseball glove,glove,18,sport,#01cd03,0,1,35
+36,skateboard,board,15,sport,#993400,1,1,36
+37,surfboard,board,15,sport,#993400,1,1,37
+38,tennis racket,bat,17,sport,#cd8b0d,0,1,38
+39,bottle,bottle,19,container,#cd1083,0,1,39
+40,wine glass,glass,20,container,#5e3400,0,1,40
+41,cup,cup,21,container,#6d0034,0,1,41
+42,fork,fork,22,cutlery,#0301cd,0,1,42
+43,knife,knife,23,cutlery,#014ccd,0,1,43
+44,spoon,spoon,24,cutlery,#343d00,0,1,44
+45,bowl,bowl,25,container,#0dcd01,0,1,45
+46,banana,banana,26,fruit,#01cdc9,0,1,46
+47,apple,apple,27,fruit,#0166cd,0,1,47
+48,sandwich,sandwich,28,fastfood,#5201cd,0,1,48
+49,orange,orange,29,fruit,#34004d,0,1,49
+50,broccoli,brocolli,30,vegetable,#346300,0,1,50
+51,carrot,carrot,31,vegetable,#01cd7c,0,1,51
+52,hot dog,hotdog,32,fastfood,#0038dc,0,1,52
+53,pizza,pizza,33,fastfood,#cd06a2,0,1,53
+54,donut,donut,34,fastfood,#3400f5,0,1,54
+55,cake,cake,35,fastfood,#348500,0,1,55
+56,chair,chair,4,furniture,#0102cd,1,1,56
+57,couch,couch,88,furniture,#e53400,1,1,57
+58,potted plant,plant,36,plant,#cd1674,1,1,58
+59,bed,bed,37,furniture,#3400c5,1,1,59
+60,dining table,table,38,furniture,#340068,1,1,60
+61,toilet,toilet,39,bathroom,#343900,1,1,61
+62,tv,screen,40,electronics,#340040,1,1,62
+63,laptop,screen,40,electronics,#340040,1,1,63
+64,mouse,mouse,41,electronics,#346e00,0,1,64
+65,remote,remote,42,electronics,#6d01cd,0,1,65
+66,keyboard,keyboard,43,electronics,#850034,0,1,66
+67,cell phone,phone,44,electronics,#0035ed,0,1,67
+68,microwave,oven,45,electronics,#00d539,1,1,68
+69,oven,oven,45,electronics,#00d539,1,1,69
+70,toaster,toaster,46,electronics,#590034,1,1,70
+71,sink,sink,47,kitchen,#005e85,1,1,71
+72,refrigerator,refrigerator,48,electronics,#0a01cd,1,1,72
+73,book,book,49,stationary,#cd532b,1,1,73
+74,clock,clock,50,object,#4ccd01,1,1,74
+75,vase,vase,51,object,#34005e,1,1,75
+76,scissors,scissors,52,object,#8b01cd,0,1,76
+77,teddy bear,teddybear,53,object,#cdca02,0,1,77
+78,hair drier,hairdrier,54,electronics,#490034,0,1,78
+79,toothbrush,brush,55,object,#420034,0,1,79
+80,banner,banner,56,object,#01b1cd,1,1,80
+81,blanket,blanket,57,object,#34a000,0,1,81
+83,cardboard,cardboard,58,stationary,#340035,1,1,83
+84,counter,table,38,furniture,#340068,1,1,84
+85,curtain,wall,77,object,#c53400,1,1,85
+86,door-stuff,door,60,building,#800020,1,1,86
+87,floor-wood,floor,61,building,#40cd01,1,0,87
+88,flower,flower,62,object,#01cdaa,1,1,88
+89,fruit,fruit,63,food,#34be00,0,1,89
+90,gravel,stones,64,stones,#1acd01,1,1,90
+91,house,house,65,building,#35cd01,1,0,91
+92,light,light,66,electricals,#0159cd,1,1,92
+93,mirror-stuff,mirror,67,mirror,#01cd8b,1,1,93
+94,net,net,68,object,#3400d5,0,1,94
+95,pillow,pillow,69,object,#cd1e66,0,1,95
+97,playingfield,ground,70,outdoor,#34008c,1,1,97
+101,roof,ceiling,71,building,#0192cd,1,0,101
+102,sand,floor,61,building,#00ff00,1,0,102
+104,shelf,table,38,furniture,#340068,1,1,104
+105,snow,floor,61,building,#00ff00,1,0,105
+106,stairs,stairs,74,building,#cd02c1,1,0,106
+107,tent,tent,75,object,#345000,1,1,107
+108,towel,towel,76,object,#05cd01,0,1,108
+109,wall-brick,wall,77,building,#c53400,1,0,109
+110,wall-stone,wall,77,building,#c53400,1,0,110
+111,wall-tile,wall,77,building,#c53400,1,0,111
+112,wall-wood,wall,77,building,#c53400,1,0,112
+113,water-other,water,78,water,#0113cd,1,1,113
+114,window-blind,window,79,building,#808080,1,1,114
+115,window-other,window,79,building,#808080,1,1,115
+116,tree-merged,plant,36,outdoor,#cd1674,1,1,116
+117,fence-merged,fence,80,outdoor,#920034,1,1,117
+118,ceiling-merged,ceiling,71,building,#0192cd,1,0,118
+119,sky-other-merged,ceiling,71,building,#0192cd,1,0,119
+120,cabinet-merged,cabinet,83,furniture,#0174cd,1,1,120
+121,table-merged,table,38,furniture,#340068,1,1,121
+122,floor-other-merged,floor,61,building,#00ff00,1,0,122
+123,pavement-merged,floor,61,building,#00ff00,1,0,123
+125,grass-merged,plant,36,plant,#cd1674,1,1,125
+126,dirt-merged,floor,61,building,#00ff00,1,0,126
+127,paper-merged,paper,85,stationary,#347900,1,1,127
+128,food-other-merged,food,86,food,#01cdba,0,1,128
+129,building-other-merged,building,81,building,#02cd01,1,0,129
+130,rock-merged,stones,64,stones,#1acd01,1,1,130
+131,wall-other-merged,wall,77,building,#c53400,1,0,131
+132,rug-merged,floor,61,building,#00ff00,1,0,132
+133,unclassified,unclassified,89,unclassified,#000000,0,1,133
+134,door-false,door,60,building,#0000ff,1,0,134
+135,window-false,window,79,building,#ff0000,1,0,134

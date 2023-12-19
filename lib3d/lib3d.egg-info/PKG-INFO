@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: lib3d
+Version: 0.1
+Summary: 3D lib for SceneRecon
+Author: udit.S
+Author-email: uditsangule@gmail.com
+License: UNKNOWN
+Keywords: python3,find package
+Platform: UNKNOWN
+Classifier: Operating System :: Linux
+
+First verion of 3dlib
+
