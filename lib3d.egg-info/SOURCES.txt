@@ -10,8 +10,8 @@ lib3d/_io/import/__init__.py
 lib3d/data/__init__.py
 lib3d/data/trajectoryExample.py
 lib3d/objectdetection/__init__.py
-lib3d/objectdetection/2d/__init__.py
-lib3d/objectdetection/3d/__init__.py
+lib3d/objectdetection/_2d/__init__.py
+lib3d/objectdetection/_3d/__init__.py
 lib3d/rtabmap/__init__.py
 lib3d/shapefit/__init__.py
 lib3d/shapefit/cuboid/__init__.py
