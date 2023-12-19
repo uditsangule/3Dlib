@@ -1,5 +1,7 @@
+README.md
 setup.py
 lib3d/__init__.py
+lib3d/_version.py
 lib3d.egg-info/PKG-INFO
 lib3d.egg-info/SOURCES.txt
 lib3d.egg-info/dependency_links.txt

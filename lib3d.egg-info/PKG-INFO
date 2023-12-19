@@ -8,6 +8,15 @@ License: UNKNOWN
 Keywords: python3,find package
 Platform: UNKNOWN
 Classifier: Operating System :: Linux
+Requires: numpy
+Requires: open3d
+Requires: pyquaternion
+Requires: vg
+Requires: trimesh
+Requires: pyglet
+Requires: pymbree
+Requires: PyYAML
+Requires: Pillow
 Requires-Python: >=3.8
 
 First verion of 3dlib
