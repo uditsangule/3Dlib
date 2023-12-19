@@ -1,7 +1,6 @@
 .idea
-.idea/*.*
-.dist/*.*
-lib3d.egg-info/*.*
-.build/*.*
-*.__pycache__/*.*
+dist/*
+lib3d.egg-info/*
+build/*
+.__pycache__/*.*
 *.pyc
