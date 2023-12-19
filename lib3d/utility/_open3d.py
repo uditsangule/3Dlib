@@ -35,13 +35,25 @@ def detectplanerpathes(PointCloud,scale=[1.5, 1.5, 0.0001],minptsplane=100,_retu
 
 
 def load(path, mode="mesh"):
-    if path.__contains__(".ply"):return o3d.io.read_point_cloud(path)
-    elif path.__contains__(".pcd"):return o3d.io.read_triangle_mesh(path)
-    else:return None
+    if path.__contains__(".ply"): return o3d.io.read_point_cloud(path)
+    elif path.__contains__(".pcd"): return o3d.io.read_triangle_mesh(path)
+    else: return None
 
 
 def _resize_cam_camtrix(matrix, scale=[1, 1, 1]):return np.multiply(matrix, np.asarray([scale]).T)
 
+def depth2pts(depth,intrinsic , d_scale=1000):
+    depthdimm = depth.shape
+    ## Calculating points 3D
+    pixelx, pixely = np.meshgrid(
+        np.linspace(0, depthdimm[1] - 1, depthdimm[1]),
+        np.linspace(0, depthdimm[0] - 1, depthdimm[0]),
+    )
+    ptx = np.multiply(pixelx - intrinsic[0, 2], depth / intrinsic[0, 0])
+    pty = np.multiply(pixely - intrinsic[1, 2], depth / intrinsic[1, 1])
+
+    orgp = np.asarray([ptx, pty, depth]).transpose(1, 2, 0).reshape(-1, 3)
+    return orgp
 
 def getdepth2pcd(depth, rgb, calib, mask, cocometa, depth_scale=1000, accpttol=0.1):
     depth = depth / depth_scale
@@ -59,16 +71,8 @@ def getdepth2pcd(depth, rgb, calib, mask, cocometa, depth_scale=1000, accpttol=0
     rgb1 = rgb.copy()
     rgb1[objidx[:, 0], objidx[:, 1]] = [0, 0, 0]
     rgb1[strcidx[:, 0], strcidx[:, 1]] = [255, 0, 0]
+    orgp = depth2pts(depth , intrinsic)
 
-    ## Calculating points 3D
-    pixelx, pixely = np.meshgrid(
-        np.linspace(0, depthdimm[1] - 1, depthdimm[1]),
-        np.linspace(0, depthdimm[0] - 1, depthdimm[0]),
-    )
-    ptx = np.multiply(pixelx - intrinsic[0, 2], depth / intrinsic[0, 0])
-    pty = np.multiply(pixely - intrinsic[1, 2], depth / intrinsic[1, 1])
-
-    orgp = np.asarray([ptx, pty, depth]).transpose(1, 2, 0).reshape(-1, 3)
     colors = resize(rgb.astype(np.uint8), depthdimm, mode="edge", anti_aliasing=False).reshape(-1, 3)
     colorsmask = resize(rgb1.astype(np.uint8), depthdimm, mode="edge", anti_aliasing=False).reshape(-1, 3)
     ## filtering near points with tol values and nonzero
