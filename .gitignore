@@ -1,5 +1,7 @@
-run.py
+*.run.py
 test.py
+run.py
+
 .idea
 dist/*
 lib3d.egg-info/*
