@@ -10,4 +10,6 @@ with Path('requirements.txt').open() as f: install_req = [str(r).split('~')[0] f
 
 setup(name='lib3d', version=VERSION, author='udit.S', author_email='uditsangule@gmail.com', description=DESC,
       long_description=LONG_DESC, packages=find_packages(), requires=install_req, keywords=['python3', 'find package'],
-      classifiers=['Operating System :: Linux'], python_requires='>=3.8')
+      classifiers=['Operating System :: Linux'], python_requires='>=3.8',include_package_data = True
+      )
+

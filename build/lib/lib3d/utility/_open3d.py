@@ -3,6 +3,7 @@ import numpy as np
 import trimesh as tm
 import os
 from skimage.transform import resize
+from ._linalg3d import findBestPlane
 
 vec3d = o3d.utility.Vector3dVector
 vec3i = o3d.utility.Vector3iVector
@@ -31,7 +32,8 @@ def detectplanerpathes(PointCloud,scale=[1.5, 1.5, 0.0001],minptsplane=100,_retu
                                               min_num_points=minptsplane,
                                               search_param=o3d.geometry.KDTreeSearchParamKNN(knn=10))
     meshlist = [o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(bbox, scale=scale) for bbox in oboxes]
-    return oboxes, meshlist
+    Planeqns = [findBestPlane(points=np.asarray(box_.get_box_points())) for box_ in oboxes]
+    return oboxes, meshlist , Planeqns
 
 
 def load(path, mode="mesh"):

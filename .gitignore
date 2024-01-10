@@ -4,3 +4,4 @@ lib3d.egg-info/*
 build/*
 .__pycache__/*.*
 *.pyc
+./run.py

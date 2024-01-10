@@ -3,9 +3,11 @@ import numpy as np
 import trimesh as tm
 import os
 from skimage.transform import resize
+from ._linalg3d import findBestPlane
 
 vec3d = o3d.utility.Vector3dVector
 vec3i = o3d.utility.Vector3iVector
+
 vec2d = o3d.utility.Vector2dVector
 vec2i = o3d.utility.Vector2iVector
 
@@ -31,7 +33,8 @@ def detectplanerpathes(PointCloud,scale=[1.5, 1.5, 0.0001],minptsplane=100,_retu
                                               min_num_points=minptsplane,
                                               search_param=o3d.geometry.KDTreeSearchParamKNN(knn=10))
     meshlist = [o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(bbox, scale=scale) for bbox in oboxes]
-    return oboxes, meshlist
+    Planeqns = [findBestPlane(points=np.asarray(box_.get_box_points())) for box_ in oboxes]
+    return oboxes, meshlist , Planeqns
 
 
 def load(path, mode="mesh"):
@@ -41,6 +44,7 @@ def load(path, mode="mesh"):
 
 
 def _resize_cam_camtrix(matrix, scale=[1, 1, 1]):return np.multiply(matrix, np.asarray([scale]).T)
+
 
 def depth2pts(depth,intrinsic , d_scale=1000):
     depthdimm = depth.shape
@@ -93,7 +97,7 @@ def getdepth2pcd(depth, rgb, calib, mask, cocometa, depth_scale=1000, accpttol=0
     objrays = orgp[objidx] - np.asarray([0,0,0])
     if len(strcidx) < 1 :
         return orgp , colors
-    oboxes , meshes = detectplanerpathes(o_pcd.select_by_index(strcidx) , scale=[1,1,0.00000001])
+    oboxes , meshes , _ = detectplanerpathes(PointCloud= o_pcd.select_by_index(strcidx) , scale=[1,1,0.00000001])
     if len(oboxes) < 1:
         return orgp[strcidx] , colors[strcidx]
     mesh = _tomesh()
@@ -117,11 +121,11 @@ def _tolineset(points=None, lines=None, colors=np.asarray([1, 0, 0])):
     :return:
     """
     lineset = o3d.geometry.LineSet()
-    if points is None:return lineset
+    if points is None: return lineset
     lineset.points = vec3d(np.asarray(points))
     if len(colors.shape) < 2:lineset.paint_uniform_color(colors)
     else:lineset.colors = vec3d(np.asarray(colors))
-    if lines is None:return lineset
+    if lines is None: return lineset
     lineset.lines = vec2i(np.asarray(lines))
     return lineset
 

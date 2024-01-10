@@ -1,0 +1,2 @@
+include lib3d/rtabmap/*.*
+include lib3d/data/*.csv
