@@ -1,7 +1,9 @@
+run.py
+test.py
 .idea
 dist/*
 lib3d.egg-info/*
 build/*
 .__pycache__/*.*
 *.pyc
-./run.py
+
