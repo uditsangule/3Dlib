@@ -18,8 +18,9 @@ def NormalViz(geometrylist, _ui=0):
     :param geometrylist: list containing all the geometries
     :param _ui: enables with UI
     """
-    return o3d.visualization.draw_geometries(geometrylist) if not _ui else o3d.visualization.draw(geometrylist,
-                                                                                                  show_ui=1)
+    if not _ui: o3d.visualization.draw_geometries(geometrylist)
+    else: o3d.visualization.draw(geometrylist,show_ui=1)
+    return
 
 
 def axis_mesh(origin=(0, 0, 0), size=1):
@@ -57,56 +58,6 @@ def depth2pts(depth, intrinsic, d_scale=1000):
 
     orgp = np.asarray([ptx, pty, depth]).transpose(1, 2, 0).reshape(-1, 3)
     return orgp
-
-
-def getdepth2pcd(depth, rgb, calib, mask, cocometa, depth_scale=1000, accpttol=0.1):
-    depth = depth / depth_scale
-    rgbdimm, depthdimm = rgb.shape, depth.shape
-    intrinsic = np.reshape(calib["camera_matrix"]["data"], (3, 3))
-    intrinsic = _resize_cam_camtrix(intrinsic, scale=[depthdimm[1] / rgbdimm[1], depthdimm[0] / rgbdimm[0], 1])
-    availclass = np.unique(mask)
-    objids = cocometa.Class_ID[cocometa.flag_objremoval == 1].values
-    strctids = cocometa.Class_ID[cocometa.flag_objremoval == 0].values
-
-    objidx = np.argwhere(np.isin(mask, np.intersect1d(objids, availclass)))
-    strcidx = np.argwhere(np.isin(mask, np.intersect1d(strctids, availclass)))
-    rgb1 = rgb.copy()
-    rgb1[objidx[:, 0], objidx[:, 1]] = [0, 0, 0]
-    rgb1[strcidx[:, 0], strcidx[:, 1]] = [255, 0, 0]
-    orgp = depth2pts(depth, intrinsic)
-
-    colors = resize(rgb.astype(np.uint8), depthdimm, mode="edge", anti_aliasing=False).reshape(-1, 3)
-    colorsmask = resize(rgb1.astype(np.uint8), depthdimm, mode="edge", anti_aliasing=False).reshape(-1, 3)
-    ## filtering near points with tol values and nonzero
-    accptidx = np.where(np.all(orgp, axis=1) > accpttol)[0]
-    orgp = orgp[accptidx]
-    colors = colors[accptidx]
-    colorsmask = colorsmask[accptidx]
-
-    o_pcd = _topcd(points=orgp, colors=colorsmask)
-    o_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=10))
-    o_pcd.orient_normals_towards_camera_location(camera_location=[0, 0, 0])
-
-    objidx = np.where(colorsmask[:, 0] == 0)[0]
-    if len(objidx) < 1 or 1: return orgp, colors
-    strcidx = np.where(colorsmask[:, 0] == 1)[0]
-    objrays = orgp[objidx] - np.asarray([0, 0, 0])
-    if len(strcidx) < 1:
-        return orgp, colors
-    oboxes, meshes, _ = detectplanerpathes(PointCloud=o_pcd.select_by_index(strcidx), scale=[1, 1, 0.00000001])
-    if len(oboxes) < 1:
-        return orgp[strcidx], colors[strcidx]
-    mesh = _tomesh()
-    for box in oboxes:
-        if box.volume() > 0.01: mesh += o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(box, scale=[1, 1,
-                                                                                                                0.000001])
-    tmesh = tm.Trimesh(vertices=mesh.vertices, faces=mesh.triangles)
-    loc_, idx, tri_ = tmesh.ray.intersects_location(ray_origins=np.zeros(shape=objrays.shape), ray_directions=objrays)
-    orgp[objidx[idx]] = loc_
-    orgp = orgp[strcidx.tolist() + objidx[idx].tolist()]
-    colors = colors[strcidx.tolist() + objidx[idx].tolist()]
-    # NormalViz([_topcd(points=orgp, colors=colors)] + [axis_mesh()])
-    return orgp, colors
 
 
 def _tolineset(points=None, lines=None, colors=np.asarray([1, 0, 0])):

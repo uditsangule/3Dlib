@@ -3,16 +3,49 @@ import numba as nb
 from skspatial.objects import Plane, Line, Vector
 
 
+def tounit(vec: np.ndarray) -> np.ndarray:
+    """converts into unitvectors , normalized form"""
+    if vec.ndim == 1: return vec / np.linalg.norm(vec)
+    return vec / np.linalg.norm(vec, axis=1)[:, np.newaxis]
+
+
+def vec_angle(svec, tvec, normalize=True, maxang=180, signed=False, units="deg") -> np.ndarray:
+    """
+    Calculates the angles in rad or deg between source vectors to target vector
+     Args:
+        svec: (3) source vector
+        tvec: (N,3) or (3) taget vector/s from where to check angle
+        normalize: True if normalization is needed to be done on vectors
+        maxang: outputs in [0,maxang] range. usuaually [0,90] default it is [0,180]
+        signed: if clock or anticlockwise angles needed
+        units: format of unit required as output, "rad": in radians , "deg": in degress (default).
+
+    Returns: (N) array of angles between vectors.
+
+    """
+    if type(svec) in ['list', 'tuple']: svec = np.asarray(svec)
+    if type(tvec) in ['list', 'tuple']: tvec = np.asarray(tvec)
+    if normalize: svec, tvec = tounit(svec), tounit(tvec)
+    dotprod = np.einsum("ij,ij->i", svec.reshape(-1, 3), tvec.reshape(-1, 3))
+    angles = np.arccos(np.clip(dotprod, -1.0, 1.0))
+    if units == 'deg':
+        angles = np.degrees(angles)
+        if maxang == 90: angles[angles > maxang] = 180 - angles[angles > maxang]
+    return np.around(angles, decimals=2)
+
+
 def Point2PointDist(points: np.ndarray, ref: np.ndarray, positive=True) -> np.ndarray:
     # Euclidian Distance which is always positive!
     return np.linalg.norm((points - ref), axis=1)
 
-def Plane2PlaneDist(plane1 , Otherplanes , positive=True) -> np.ndarray:
-    #dot_ = np.dot(plane1.vector , np.vstack([n.vector for n in Otherplanes]))
-    n_ = np.cross(plane1.vector , np.vstack([n.vector for n in Otherplanes]))
-    n_ = n_ / np.linalg.norm(n_ , axis=1 , keepdims=True)
-    res_ = np.dot(n_ , np.vstack([p.point for p in Otherplanes]) - plane1.point)
+
+def Plane2PlaneDist(plane1, Otherplanes, positive=True) -> np.ndarray:
+    dot_ = np.asarray(plane1[0].vector)[:, np.newaxis].T.dot(np.vstack([p.vector for p in Otherplanes]).T)[0].round(3)
+    n_ = np.cross(plane1.vector, np.vstack([n.vector for n in Otherplanes]))
+    n_ = n_ / np.linalg.norm(n_, axis=1, keepdims=True)
+    res_ = (np.vstack([p.point for p in Otherplanes]) - plane1.point).dot(n_)
     return np.abs(res_) if positive else res_
+
 
 def toPointDistance(P, points: np.ndarray, positive=True) -> np.ndarray:
     """
@@ -30,7 +63,7 @@ def toPointDistance(P, points: np.ndarray, positive=True) -> np.ndarray:
     return res_ if not positive else np.abs(res_)
 
 
-def project(points: np.ndarray, plane=None, line=None) -> np.ndarray:
+def project(points: np.ndarray, plane=None, line=None) -> np.ndarray or None:
     """
     projects N points onto plane or line whichever is given
     Args:
