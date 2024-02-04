@@ -1,13 +1,15 @@
 import numpy as np
+
+
 import pyquaternion as pyqr
 import vg
 
-xaxis , yaxis ,zaxis = np.eye(3) * -1
+xaxis , yaxis ,zaxis = np.eye(3)
 
 def get_rotmat(vec1, vec2):
     """ Find the rotation matrix that aligns vec1 to vec2
-    :param vec1: A 3d "source" vector
-    :param vec2: A 3d "destination" vector
+    :param vec1: source vector
+    :param vec2: target vector on which the source vector will be rotated
     :return mat: A transform matrix (3x3) which when applied to vec1, aligns it with vec2.
     """
     a = vec1/np.linalg.norm(vec1) if np.linalg.norm(vec1)!=1 else vec1
