@@ -28,33 +28,54 @@ def NormalViz(geometrylist, _ui=0):
 def axis_mesh(origin=(0, 0, 0), size=5):
     return o3d.geometry.TriangleMesh.create_coordinate_frame(size=size, origin=origin)
 
-def axisAlign_pointcloud(pcd , min_ang=20):
+def axisAlign_pointcloud(pcd ,planelist = None, min_ang=20):
     """
     Axis Alignment of point cloud
     Args:
-        pcd: Pointcloud
-        min_ang:  angle deviation threshold from z-axis
+        pcd: Pointcloud ( open3d.geometry3D.PointCloud )
+        planelist (optinal) : a list of plane which formed by pointcloud for checking the orientation.
+        min_ang:  angle deviation threshold from z-axis. default = 20.
 
     Returns: aligned point cloud
 
     """
-    _ ,meshlist,planelist,_ = detectplanerpathes(PointCloud=pcd , scale=(1,1,0.001) , minptsplane=100)
+    if planelist is None: _ ,meshlist,planelist,_ = detectplanerpathes(PointCloud=pcd , scale=(1,1,0.001) , minptsplane=100)
     vecs = np.asarray([p.vector for p in planelist])
     zplanemask = vec_angle(svec=zaxis , tvec=vecs , maxang=90) < min_ang
-    if ~np.any(zplanemask): print("no planes on zaxis! cannot align");return pcd
-    haxis = np.asarray([xaxis,-xaxis , yaxis , -yaxis])
-    haxis = haxis[vec_angle(svec=vecs[~zplanemask][0],tvec=haxis).argmin()]
-    # geting suitable rotation matrix
-    vrot = get_rotmat(vec2=zaxis if vec_angle(zaxis, vecs[zplanemask])[0] < 90 else -zaxis , vec1=vecs[zplanemask][0])
-    hrot = get_rotmat(vec2=haxis, vec1=vecs[~zplanemask][0])
-    #applying rotations
+    if ~np.any(zplanemask):
+        print("no planes on zaxis! No Rotation applied!")
+        return pcd
+    # z-axis rotation
+    vrot = get_rotmat(vec2=zaxis if vec_angle(zaxis, vecs[zplanemask])[0] < 90 else -zaxis, vec1=vecs[zplanemask][0])
     pcd.rotate(vrot)
+
+    # x y axis rotation
+    haxis = np.asarray([xaxis, -xaxis, yaxis, -yaxis])
+    haxis = haxis[vec_angle(svec=vecs[~zplanemask][0], tvec=haxis).argmin()]
+    hrot = get_rotmat(vec2=haxis, vec1=vecs[~zplanemask][0])
     pcd.rotate(hrot)
     return pcd
 
 
+
+
 def detectplanerpathes(PointCloud, scale=(1, 1, 1), minptsplane=100,sorted=True):
-    ptsmap = np.full(len(PointCloud.points), fill_value=-1,dtype=np.int8)
+    """
+    Detects planes on point cloud using a robust statistics-based approach is used based on normal tolerance.
+    Args:
+        PointCloud: Pointcloud ( o3d.geometry3D.PointCloud ).
+        scale: scale factor of bounding box in tuple(Sx,Sy,Sz).
+        minptsplane: minimum points required to form a plane.
+        sorted: if True , return values will be sorted larger plane to smaller found.
+
+    Returns:
+        oboxes: list of oriented bounded box of planes.
+        meshlist : oboxes converted to meshes by scale factor.
+        planelist : list of plane equations.
+        ptsmap : mapping of points to its corresponding plane equation.
+
+    """
+    ptsmap = -np.ones(len(PointCloud.points))
     oboxes = PointCloud.detect_planar_patches(normal_variance_threshold_deg=20, coplanarity_deg=70, outlier_ratio=0.70,
                                               min_plane_edge_length=0.1, min_num_points=minptsplane,
                                               search_param=o3d.geometry.KDTreeSearchParamKNN(knn=minptsplane//4)) #25%
@@ -146,6 +167,7 @@ def depth2pts(depth, intrinsic, rgb, d_scale=1000, mindepth=0.05):
     ptx = np.multiply(pixelx - intrinsic[0, 2], depth / intrinsic[0, 0])
     pty = np.multiply(pixely - intrinsic[1, 2], depth / intrinsic[1, 1])
     orgp = np.asarray([ptx, pty, depth]).transpose(1, 2, 0).reshape(-1, 3)
+    orgp= np.around(orgp , decimals=3)
     colors = resize(rgb.astype(np.uint8), depthdimm).reshape(-1, 3)
     orgp , vidx = np.unique(orgp , axis=0 , return_index=True)
     return orgp , colors[vidx]
