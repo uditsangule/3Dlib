@@ -157,7 +157,7 @@ def load(path, mode="mesh"):
 def _resize_cam_camtrix(matrix, scale=(1, 1, 1)): return np.multiply(matrix, np.asarray([scale]).T)
 
 
-def depth2pts(depth, intrinsic, rgb, d_scale=1000, mindepth=0.05):
+def depth2pts(depth, intrinsic, rgb, d_scale=1000, mindepth=0.05 , roundup=0):
     depth = depth/d_scale
     depthdimm = depth.shape
 
@@ -167,10 +167,15 @@ def depth2pts(depth, intrinsic, rgb, d_scale=1000, mindepth=0.05):
     ptx = np.multiply(pixelx - intrinsic[0, 2], depth / intrinsic[0, 0])
     pty = np.multiply(pixely - intrinsic[1, 2], depth / intrinsic[1, 1])
     orgp = np.asarray([ptx, pty, depth]).transpose(1, 2, 0).reshape(-1, 3)
-    orgp= np.around(orgp , decimals=3)
-    colors = resize(rgb.astype(np.uint8), depthdimm).reshape(-1, 3)
-    orgp , vidx = np.unique(orgp , axis=0 , return_index=True)
-    return orgp , colors[vidx]
+    if rgb.shape[0] != depthdimm[0]:rgb = resize(rgb.astype(np.uint8) , depthdimm)
+    colors = rgb.reshape(-1, 3)
+
+    if roundup:
+        orgp = np.around(orgp, decimals=roundup)
+        orgp , vidx = np.unique(orgp , axis=0 , return_index=True)
+        return orgp , colors[vidx]
+
+    return orgp , colors
 
 
 def _tolineset(points=None, lines=None, colors=np.asarray([1, 0, 0])):

@@ -1,6 +1,4 @@
-*.run.py
-test.py
-run.py
+run_*.py
 
 .idea
 dist/*
