@@ -1,9 +1,10 @@
 run_*.py
 
 .idea
-dist/*
-lib3d.egg-info/*
-build/*
+dist
+build
+lib
+lib3d.egg-info
 .__pycache__/*.*
 *.pyc
 
