@@ -8,4 +8,4 @@ lib3d.egg-info
 .lib3d.egg-info/*.*
 .__pycache__/*.*
 *.pyc
-
+lib3d/data/*.*
