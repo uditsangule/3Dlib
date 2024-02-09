@@ -2,8 +2,10 @@ import open3d as o3d
 import numpy as np
 import trimesh as tm
 import os
+from tqdm.auto import tqdm
 from skimage.transform import resize
-from ._linalg3d import findBestPlane
+from ._linalg3d import findBestPlane , toPointDistance , vec_angle
+from ._RTS import get_rotmat , xaxis , zaxis , yaxis
 
 vec3d = o3d.utility.Vector3dVector
 vec3i = o3d.utility.Vector3iVector
@@ -18,22 +20,130 @@ def NormalViz(geometrylist, _ui=0):
     :param geometrylist: list containing all the geometries
     :param _ui: enables with UI
     """
-    return o3d.visualization.draw_geometries(geometrylist) if not _ui else o3d.visualization.draw(geometrylist,
-                                                                                                  show_ui=1)
+    if not _ui: o3d.visualization.draw_geometries(geometrylist)
+    else: o3d.visualization.draw(geometrylist,show_ui=True)
+    return
 
 
-def axis_mesh(origin=(0, 0, 0), size=1):
+def axis_mesh(origin=(0, 0, 0), size=5):
     return o3d.geometry.TriangleMesh.create_coordinate_frame(size=size, origin=origin)
 
+def axisAlign_pointcloud(pcd ,planelist = None, min_ang=20):
+    """
+    Axis Alignment of point cloud
+    Args:
+        pcd: Pointcloud ( open3d.geometry3D.PointCloud )
+        planelist (optinal) : a list of plane which formed by pointcloud for checking the orientation.
+        min_ang:  angle deviation threshold from z-axis. default = 20.
 
-def detectplanerpathes(PointCloud, scale=(1.5, 1.5, 0.0001), minptsplane=100, _return=False, _getinsidepts=False):
+    Returns: aligned point cloud
+
+    """
+    if planelist is None: _ ,meshlist,planelist,_ = detectplanerpathes(PointCloud=pcd , scale=(1,1,0.001) , minptsplane=100)
+    vecs = np.asarray([p.vector for p in planelist])
+    zplanemask = vec_angle(svec=zaxis , tvec=vecs , maxang=90) < min_ang
+    if ~np.any(zplanemask):
+        print("no planes on zaxis! No Rotation applied!")
+        return pcd
+    # z-axis rotation
+    vrot = get_rotmat(vec2=zaxis if vec_angle(zaxis, vecs[zplanemask])[0] < 90 else -zaxis, vec1=vecs[zplanemask][0])
+    pcd.rotate(vrot)
+
+    # x y axis rotation
+    haxis = np.asarray([xaxis, -xaxis, yaxis, -yaxis])
+    haxis = haxis[vec_angle(svec=vecs[~zplanemask][0], tvec=haxis).argmin()]
+    hrot = get_rotmat(vec2=haxis, vec1=vecs[~zplanemask][0])
+    pcd.rotate(hrot)
+    return pcd
+
+
+
+
+def detectplanerpathes(PointCloud, scale=(1, 1, 1), minptsplane=100,sorted=True):
+    """
+    Detects planes on point cloud using a robust statistics-based approach is used based on normal tolerance.
+    Args:
+        PointCloud: Pointcloud ( o3d.geometry3D.PointCloud ).
+        scale: scale factor of bounding box in tuple(Sx,Sy,Sz).
+        minptsplane: minimum points required to form a plane.
+        sorted: if True , return values will be sorted larger plane to smaller found.
+
+    Returns:
+        oboxes: list of oriented bounded box of planes.
+        meshlist : oboxes converted to meshes by scale factor.
+        planelist : list of plane equations.
+        ptsmap : mapping of points to its corresponding plane equation.
+
+    """
+    ptsmap = -np.ones(len(PointCloud.points))
     oboxes = PointCloud.detect_planar_patches(normal_variance_threshold_deg=20, coplanarity_deg=70, outlier_ratio=0.70,
-                                              min_plane_edge_length=0, min_num_points=minptsplane,
-                                              search_param=o3d.geometry.KDTreeSearchParamKNN(knn=10))
-    meshlist = [o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(bbox, scale=scale) for bbox in oboxes]
-    Planeqns = [findBestPlane(points=np.asarray(box_.get_box_points())) for box_ in oboxes]
-    return oboxes, meshlist, Planeqns
+                                              min_plane_edge_length=0.1, min_num_points=minptsplane,
+                                              search_param=o3d.geometry.KDTreeSearchParamKNN(knn=minptsplane//4)) #25%
+    volidx = np.asarray([bbox.volume() for bbox in oboxes]).argsort()[::-1] if sorted else np.arange(len(oboxes),dtype=np.int16)
+    oboxes = np.asarray([oboxes[i_] for i_ in volidx if oboxes[i_].volume() > 0])
+    print("Detected {} patches".format(len(oboxes)))
+    for i, bbox in enumerate(oboxes): ptsmap[bbox.get_point_indices_within_bounding_box(PointCloud.points)] = i
+    meshlist = np.asarray([o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(bbox, scale=scale) for bbox in oboxes])
+    Planeqns = np.asarray([findBestPlane(points=np.asarray(box_.get_box_points())) for box_ in oboxes])
+    return oboxes, meshlist, Planeqns , ptsmap
 
+
+def denoise(opcd, iter_=5,viz=False):
+    opcd.points = vec3d(np.asarray(opcd.points).round(3))
+    opcd.normals = vec3d(np.asarray(opcd.normals).round(3))
+    opcd.remove_duplicated_points()
+    print("n_points:{0} m".format(len(opcd.points)/10**6))
+    valids = np.ones(shape=len(opcd.points),dtype=np.int32)
+    ind , noiseidx = noiseremoval(pointcloud=opcd,n_neigh=50 , rad=0.1 , dseps=0.07,iter_=iter_)
+    valids[noiseidx] = 0
+    if viz:
+        NormalViz([opcd.select_by_index(np.where(valids)[0])] + [opcd.select_by_index(np.where(valids==0)[0]).paint_uniform_color((1, 0, 0))])
+    return opcd , valids
+
+def noiseremoval(pointcloud , n_neigh=15,rad=0.05,dseps=0.02 , iter_=5,viz=False):
+    """
+    Removes noise from the pointcloud iteratively!
+    Args:
+        pointcloud: pointcloud
+        n_neigh: number of neighbour required in sphere.
+        rad: radius threshold of the sphere to check
+
+    Returns: index of points which are valids , index of points which are noise
+
+    """
+
+    def get_idx(flags, val=1):
+        return np.where(flags == val)[0]
+
+    noiseflag = np.ones(len(pointcloud.points),dtype=np.int32)
+    prevloss = 100
+    for i in range(1,iter_+1):
+        ## Outlier check1
+        cleanpcd, ind = pointcloud.select_by_index(get_idx(noiseflag)).remove_radius_outlier(
+            nb_points=n_neigh//i, radius=rad, print_progress=False)
+        noiseflag[ind] = 0
+
+        ## Planer check
+        if len(get_idx(noiseflag,1)) < min(100,n_neigh//i) : break
+        _, _, _, ind = detectplanerpathes(pointcloud.select_by_index(get_idx(noiseflag,1)), minptsplane=min(100,n_neigh//i),
+                                          scale=(1, 1, 1))
+        noiseflag[np.where(ind >= 0)[0]] = 0
+
+        # cluster check
+        if len(np.where(noiseflag == 1)[0]) < min(30, n_neigh//i): break
+        labels = np.asarray(pointcloud.select_by_index(get_idx(noiseflag,1)).cluster_dbscan(eps=dseps,min_points=min(50, n_neigh//i)))
+        validcluster = np.where(noiseflag == 1)[0][labels >= 0]
+        noiseflag[validcluster] = 0
+        noise = round(len(get_idx(noiseflag)) * 100 / len(pointcloud.points), 2)
+        print(f"noise found: {noise}%")
+        #if n_neigh < 5 : break
+    noiseidx = np.where(noiseflag == 1)[0]
+    valids = np.where(noiseflag == 0)[0]
+    if viz:
+        NormalViz([pointcloud.select_by_index(valids)] +
+                  [pointcloud.select_by_index(noiseidx).paint_uniform_color((1, 0, 0))])
+
+    return np.where(noiseflag==0)[0], noiseidx
 
 def load(path, mode="mesh"):
     if path.__contains__(".ply"):
@@ -47,66 +157,25 @@ def load(path, mode="mesh"):
 def _resize_cam_camtrix(matrix, scale=(1, 1, 1)): return np.multiply(matrix, np.asarray([scale]).T)
 
 
-def depth2pts(depth, intrinsic, d_scale=1000):
+def depth2pts(depth, intrinsic, rgb, d_scale=1000, mindepth=0.05 , roundup=0):
+    depth = depth/d_scale
     depthdimm = depth.shape
+
     ## Calculating points 3D
     pixelx, pixely = np.meshgrid(np.linspace(0, depthdimm[1] - 1, depthdimm[1]),
         np.linspace(0, depthdimm[0] - 1, depthdimm[0]), )
     ptx = np.multiply(pixelx - intrinsic[0, 2], depth / intrinsic[0, 0])
     pty = np.multiply(pixely - intrinsic[1, 2], depth / intrinsic[1, 1])
-
     orgp = np.asarray([ptx, pty, depth]).transpose(1, 2, 0).reshape(-1, 3)
-    return orgp
+    if rgb.shape[0] != depthdimm[0]:rgb = resize(rgb.astype(np.uint8) , depthdimm)
+    colors = rgb.reshape(-1, 3)
 
+    if roundup:
+        orgp = np.around(orgp, decimals=roundup)
+        orgp , vidx = np.unique(orgp , axis=0 , return_index=True)
+        return orgp , colors[vidx]
 
-def getdepth2pcd(depth, rgb, calib, mask, cocometa, depth_scale=1000, accpttol=0.1):
-    depth = depth / depth_scale
-    rgbdimm, depthdimm = rgb.shape, depth.shape
-    intrinsic = np.reshape(calib["camera_matrix"]["data"], (3, 3))
-    intrinsic = _resize_cam_camtrix(intrinsic, scale=[depthdimm[1] / rgbdimm[1], depthdimm[0] / rgbdimm[0], 1])
-    availclass = np.unique(mask)
-    objids = cocometa.Class_ID[cocometa.flag_objremoval == 1].values
-    strctids = cocometa.Class_ID[cocometa.flag_objremoval == 0].values
-
-    objidx = np.argwhere(np.isin(mask, np.intersect1d(objids, availclass)))
-    strcidx = np.argwhere(np.isin(mask, np.intersect1d(strctids, availclass)))
-    rgb1 = rgb.copy()
-    rgb1[objidx[:, 0], objidx[:, 1]] = [0, 0, 0]
-    rgb1[strcidx[:, 0], strcidx[:, 1]] = [255, 0, 0]
-    orgp = depth2pts(depth, intrinsic)
-
-    colors = resize(rgb.astype(np.uint8), depthdimm, mode="edge", anti_aliasing=False).reshape(-1, 3)
-    colorsmask = resize(rgb1.astype(np.uint8), depthdimm, mode="edge", anti_aliasing=False).reshape(-1, 3)
-    ## filtering near points with tol values and nonzero
-    accptidx = np.where(np.all(orgp, axis=1) > accpttol)[0]
-    orgp = orgp[accptidx]
-    colors = colors[accptidx]
-    colorsmask = colorsmask[accptidx]
-
-    o_pcd = _topcd(points=orgp, colors=colorsmask)
-    o_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=10))
-    o_pcd.orient_normals_towards_camera_location(camera_location=[0, 0, 0])
-
-    objidx = np.where(colorsmask[:, 0] == 0)[0]
-    if len(objidx) < 1 or 1: return orgp, colors
-    strcidx = np.where(colorsmask[:, 0] == 1)[0]
-    objrays = orgp[objidx] - np.asarray([0, 0, 0])
-    if len(strcidx) < 1:
-        return orgp, colors
-    oboxes, meshes, _ = detectplanerpathes(PointCloud=o_pcd.select_by_index(strcidx), scale=[1, 1, 0.00000001])
-    if len(oboxes) < 1:
-        return orgp[strcidx], colors[strcidx]
-    mesh = _tomesh()
-    for box in oboxes:
-        if box.volume() > 0.01: mesh += o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(box, scale=[1, 1,
-                                                                                                                0.000001])
-    tmesh = tm.Trimesh(vertices=mesh.vertices, faces=mesh.triangles)
-    loc_, idx, tri_ = tmesh.ray.intersects_location(ray_origins=np.zeros(shape=objrays.shape), ray_directions=objrays)
-    orgp[objidx[idx]] = loc_
-    orgp = orgp[strcidx.tolist() + objidx[idx].tolist()]
-    colors = colors[strcidx.tolist() + objidx[idx].tolist()]
-    # NormalViz([_topcd(points=orgp, colors=colors)] + [axis_mesh()])
-    return orgp, colors
+    return orgp , colors
 
 
 def _tolineset(points=None, lines=None, colors=np.asarray([1, 0, 0])):

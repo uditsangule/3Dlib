@@ -1,4 +1,5 @@
 import os
 
-def export(path):
-    return os.path.join(path , 'Exports')
+def Fstatus(path):
+    os.makedirs(path , exist_ok=True)
+    return path

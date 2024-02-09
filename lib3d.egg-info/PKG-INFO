@@ -17,6 +17,10 @@ Requires: pyglet
 Requires: pymbree
 Requires: PyYAML
 Requires: Pillow
+Requires: numba
+Requires: tqdm
+Requires: pandas
+Requires: matplotlib
 Requires-Python: >=3.8
 
 First verion of 3dlib

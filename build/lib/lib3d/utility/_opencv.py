@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 
 
+def readim(imagepath,mode=None):
+    return cv2.imread(imagepath)
 def showImage(image , waitkey=0 , windowname='output'):
     """
     This Function shows image in a specified windowname
