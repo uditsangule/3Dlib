@@ -5,6 +5,7 @@ dist
 build
 build/*.*
 lib3d.egg-info
+.lib3d.egg-info/*.*
 .__pycache__/*.*
 *.pyc
 
