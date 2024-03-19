@@ -15,8 +15,7 @@ contact me: uditsangule@gmail.com
 # Features:
 1) POINTCLOUD:
 - denoising
-- noise removal
-- depth ,rgb parse to pointcloud conversion
+- depth ,rgb to pointcloud conversion
 - axis alignment of pointcloud
 
 2) 3D Linear Algebra:

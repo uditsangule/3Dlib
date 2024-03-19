@@ -4,9 +4,7 @@ Version: 0.2
 Summary: 3D lib for SceneRecon
 Author: udit.S
 Author-email: uditsangule@gmail.com
-License: UNKNOWN
 Keywords: python3,find package
-Platform: UNKNOWN
 Classifier: Operating System :: Linux
 Requires: numpy
 Requires: open3d
@@ -24,4 +22,3 @@ Requires: matplotlib
 Requires-Python: >=3.8
 
 First verion of 3dlib
-

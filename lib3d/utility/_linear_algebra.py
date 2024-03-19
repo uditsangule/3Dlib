@@ -1,7 +1,5 @@
 import numpy as np
-import numba as nb
-from skspatial.objects import Plane, Line, Vector
-
+from ._plane import Plane , Plane_Segment
 
 def tounit(vec: np.ndarray) -> np.ndarray:
     """converts into unitvectors , normalized form"""
@@ -14,23 +12,27 @@ def vec_angle(svec, tvec, normalize=True, maxang=180, signed=False, units="deg")
     Calculates the angles in rad or deg between source vectors to target vector
      Args:
         svec: (3) source vector
-        tvec: (N,3) or (3) taget vector/s from where to check angle
+        tvec: (N,3) or (3) target vector/s from where to check angle
         normalize: True if normalization is needed to be done on vectors
-        maxang: outputs in [0,maxang] range. usuaually [0,90] default it is [0,180]
+        maxang: outputs in [0,maxang] range. Usually [0,90] default it is [0,180]
         signed: if clock or anticlockwise angles needed
-        units: format of unit required as output, "rad": in radians , "deg": in degress (default).
+        units: format of unit required as output, "rad": in radians, "deg": in degrees (default).
 
     Returns: (N) array of angles between vectors.
-
     """
-    if type(svec) in ['list', 'tuple']: svec = np.asarray(svec)
-    if type(tvec) in ['list', 'tuple']: tvec = np.asarray(tvec)
-    if normalize: svec, tvec = tounit(svec), tounit(tvec)
+    if isinstance(svec, (list, tuple)):
+        svec = np.asarray(svec)
+    if isinstance(tvec, (list, tuple)):
+        tvec = np.asarray(tvec)
+
+    if normalize:
+        svec = svec / np.linalg.norm(svec)
+        tvec = tvec / np.linalg.norm(tvec)
     dotprod = np.einsum("ij,ij->i", svec.reshape(-1, 3), tvec.reshape(-1, 3))
     angles = np.arccos(np.clip(dotprod, -1.0, 1.0))
     if units == 'deg':
         angles = np.degrees(angles)
-        if maxang == 90: angles[angles > maxang] = 180 - angles[angles > maxang]
+        if maxang == 90:angles = np.where(angles > maxang, 180 - angles, angles)
     return np.around(angles, decimals=2)
 
 
@@ -100,4 +102,4 @@ def findBestPlane(points: np.ndarray, Maxpoints: int = 10 ^ 5):
     eig_vals, eig_vecs = np.linalg.eig(np.cov((points - np.mean(points, axis=0)).T))
     # select eigenvector with smallest eigenvalue
     normal = eig_vecs[:, np.argmin(eig_vals)]
-    return Plane(point=np.mean(points, axis=0).round(4), normal=-normal.round(4))
+    return Plane(point=np.mean(points, axis=0).round(4), vector=-normal.round(4))

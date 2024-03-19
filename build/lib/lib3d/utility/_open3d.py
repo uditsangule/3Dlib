@@ -4,7 +4,7 @@ import trimesh as tm
 import os
 from tqdm.auto import tqdm
 from skimage.transform import resize
-from ._linalg3d import findBestPlane , toPointDistance , vec_angle
+from ._linear_algebra import findBestPlane , toPointDistance , vec_angle
 from ._RTS import get_rotmat , xaxis , zaxis , yaxis
 
 vec3d = o3d.utility.Vector3dVector
@@ -204,6 +204,7 @@ def _topcd(points=None, colors=np.asarray([0, 0, 1]), normals=None, filepath=Non
     pcd = o3d.geometry.PointCloud()
     if points is None: return pcd
     pcd.points = vec3d(np.asarray(points))
+    if type(colors) == 'list': colors = np.asarray(colors)
     if len(colors.shape) < 2:
         pcd.paint_uniform_color(colors)
     else:

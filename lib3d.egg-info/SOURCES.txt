@@ -73,6 +73,8 @@ lib3d/utility/CodeProfiler.py
 lib3d/utility/_RTS.py
 lib3d/utility/__init__.py
 lib3d/utility/_filepath.py
-lib3d/utility/_linalg3d.py
+lib3d/utility/_linear_algebra.py
 lib3d/utility/_open3d.py
 lib3d/utility/_opencv.py
+lib3d/utility/_plane.py
+lib3d/utility/test.py
