@@ -205,7 +205,7 @@ def _topcd(points=None, colors=np.asarray([0, 0, 1]), normals=None, filepath=Non
     if points is None: return pcd
     pcd.points = vec3d(np.asarray(points))
     if type(colors) == 'list': colors = np.asarray(colors)
-    if len(colors.shape) < 2:
+    if colors.ndim == 1:
         pcd.paint_uniform_color(colors)
     else:
         pcd.colors = vec3d(colors)
@@ -215,7 +215,7 @@ def _topcd(points=None, colors=np.asarray([0, 0, 1]), normals=None, filepath=Non
     return pcd
 
 
-def _tomesh(vertices=None, triangles=None, normals=False, colors=np.asarray([0, 1, 0]), anticlock=0, filepath=None, ):
+def _tomesh(vertices=None, triangles=None, normals=False, colors=np.asarray([0, 1, 0]), anticlock=0, filepath=None, *args , **kwargs):
     """creates mesh from vertices and triangles"""
     mesh = o3d.geometry.TriangleMesh()
     if vertices is None: return mesh
@@ -225,7 +225,7 @@ def _tomesh(vertices=None, triangles=None, normals=False, colors=np.asarray([0, 
     else:
         mesh.vertex_colors = vec3d(colors)
     if triangles is None: return mesh
-    _anticlock = [tri[::-1] for tri in triangles] if anticlock else []
+    _anticlock = [tri[::-1] for tri in triangles] if anticlock else [] # triangles[...,::-1]
     mesh.triangles = vec3i(np.asarray(_anticlock + triangles))
     if not normals: return mesh
     mesh.compute_vertex_normals(normalized=1)
