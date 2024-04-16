@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
 import csv
-# import utility ? how to !
+
+from utility import _linear_algebra as l3d
 from sklearn.neighbors import KDTree , KNeighborsTransformer
 
 class RegionGrowPlanar():

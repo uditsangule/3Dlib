@@ -1,5 +1,6 @@
 import numpy as np
-from ._plane import Plane , Plane_Segment
+from ._plane import Plane , PlaneSegment
+from ._line import Line , LineSegment
 
 def tounit(vec: np.ndarray) -> np.ndarray:
     """converts into unitvectors , normalized form"""
@@ -26,14 +27,16 @@ def vec_angle(svec, tvec, normalize=True, maxang=180, signed=False, units="deg")
         tvec = np.asarray(tvec)
 
     if normalize:
-        svec = svec / np.linalg.norm(svec)
-        tvec = tvec / np.linalg.norm(tvec)
-    dotprod = np.einsum("ij,ij->i", svec.reshape(-1, 3), tvec.reshape(-1, 3))
-    angles = np.arccos(np.clip(dotprod, -1.0, 1.0))
-    if units == 'deg':
-        angles = np.degrees(angles)
-        if maxang == 90:angles = np.where(angles > maxang, 180 - angles, angles)
-    return np.around(angles, decimals=2)
+        svec = tounit(svec)
+        tvec = tounit(tvec)
+    dotprod = np.dot(tvec, svec)
+    ang = np.degrees(np.arccos(np.clip(dotprod, -1.0, 1.0)))
+    if signed is not None:
+        dp = np.dot(tvec, signed)
+        k = 1  # code for assigning sign in terms of look at vector. will code later!
+    if maxang == 90: ang = np.where(ang > maxang, 180 - ang, ang)
+    if units in 'rad': return np.radians(ang).astype(np.float16)
+    return ang.astype(np.float16)
 
 
 def Point2PointDist(points: np.ndarray, ref: np.ndarray, positive=True) -> np.ndarray:
@@ -60,7 +63,7 @@ def toPointDistance(P, points: np.ndarray, positive=True) -> np.ndarray:
     Returns: Distance of points from P
 
     """
-    P.vector = P.vector.unit()
+    P.unit()
     res_ = (points - P.point).dot(P.vector)
     return res_ if not positive else np.abs(res_)
 

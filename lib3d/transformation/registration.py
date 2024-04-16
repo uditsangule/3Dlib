@@ -1,146 +1,117 @@
+# Author :udit
+# Created on : 28/03/24
+# Features :
 from __future__ import absolute_import
-import copy
-import cv2
-import numpy as np
-from utility import _linear_algebra as l3d
-from utility import _open3d as o3d
-from utility import _filepath as f
-from PIL import Image
-from pandas import read_fwf , read_csv
-import yaml
 import os
-from pyquaternion import Quaternion
-from skimage.transform import resize
+import numpy as np
+import yaml
+from pandas import read_csv
+
+from utility import _open3d as u3d
+from utility import _opencv as ucv2
+from utility import _filepath as fp
+from utility import _linear_algebra as lgb
+from utility import _RTS
+from objectdetection._2d.yolov8 import yolov8
+
 
 class register():
-    def __init__(self, inputdir, outputdir=None):
+    def __init__(self, inputdir, outputdir=None, run_obj_detection=False, pose_format='raw', decimation=1):
         self.inputdir = os.path.dirname(inputdir)
-        self.outputdir = f.Fstatus(self.inputdir) if outputdir is None else outputdir
-        self.outputdir = outputdir
+        self.outputdir = fp.Fstatus(self.inputdir) if outputdir is None else fp.Fstatus(outputdir)
         self.rgbpath = self.inputdir + os.sep + '__rgb'
         self.depthpath = self.inputdir + os.sep + '__depth'
         self.calibpath = self.inputdir + os.sep + '__calib'
-        self.poses = read_csv(self.inputdir +os.sep+'__poses.txt', sep=" ")
-        self.formatpose = 11 # for RGBD-SLAM Ros Mode
-        colnames = ['timestamp' , 'x','y','z' , 'qx' , 'qy' ,'qz' ,'qw' , 'id']
-        if self.poses.columns.shape[0] == 12 :
-            ## posibily transformmat format
-            colnames = ['r11','r12','r13','tx','r21','r22','r23' , 'ty' , 'r31','r32' , 'r33' , 'tz']
-            self.formatpose = 0 # raw format rx tx ,ry ty , rz ,tz
+        self.decimation = decimation
+        if pose_format == 'raw':
+            # raw format 'raw' = 0
+            cols = ['r11', 'r12', 'r13', 'tx', 'r21', 'r22', 'r23', 'ty', 'r31', 'r32', 'r33', 'tz']
+            self.poses = read_csv(self.inputdir + os.sep + '__poses.txt', sep=" ", usecols=cols)
+        if pose_format == 'slam':
+            # rgdb-slam format = 11
+            cols = ['#timestamp', 'x', 'y', 'z', 'qx', 'qy', 'qz', 'qw', 'id']
+            self.poses = read_csv(self.inputdir + os.sep + '__poses.txt', sep=" ", usecols=cols)
         self.n_frames = self.poses['id'].values.astype(np.int16)
-        print("Total Frames:{0}".format(self.n_frames.size))
+        self.yolo = None
+        self.viz = u3d.o3d.visualization.Visualizer()
 
-    def get_images(self,fno,ext='.jpg'):
-        #ext = '.'+os.listdir(self.rgbpath + os.sep)[0].split('.')[1]
-        depth = np.asarray(Image.open(self.depthpath + os.sep + fno + '.png'))
-        rgb = np.asarray(Image.open(self.rgbpath + os.sep + fno + ext))
-        with open(self.calibpath + os.sep + fno + '.yaml', 'r') as f:
-            for _ in range(2):f.readline()
+        if run_obj_detection:
+            self.yolo = yolov8()
+        return
+
+    def fetch_images(self, frame_no):
+        depth = ucv2.cv2.imread(self.depthpath + os.sep + f'{str(frame_no)}.png', ucv2.cv2.IMREAD_ANYDEPTH)
+        if self.decimation > 1: depth = ucv2.pooling(depth, mode='mean', kernel=(self.decimation, self.decimation))
+        rgb = ucv2.cv2.imread(self.rgbpath + os.sep + f'{str(frame_no)}.jpg', )
+        objectmask = self.yolo.detect(frame=rgb) if self.yolo is not None else None
+        normal_map = u3d.depth2normalmap(depth)
+        with open(self.calibpath + os.sep + str(frame_no) + '.yaml', 'r') as f:
+            for _ in range(2): f.readline()
             calib = yaml.safe_load(f)
-        if rgb.shape[0]!= depth.shape[0]:
-            calib['camera_matrix']['data'] = self._resize_cam_camtrix(np.reshape(calib['camera_matrix']['data'], (3, 3)),
-                                                 scale=[depth.shape[1] / rgb.shape[1], depth.shape[0] / rgb.shape[0],1]).reshape(-1).tolist()
-            rgb = resize(rgb , depth.shape)
-        return (rgb , depth , calib)
+        return (rgb, depth, objectmask, calib, normal_map)
 
-    def _resize_cam_camtrix(self,matrix, scale=(1, 1, 1)):
-        return np.multiply(matrix, np.asarray([scale]).T)
-
-    def _get_transformation_matrix(self , f_no , mode='Quaternions'):
-        q_ =self.poses.loc[self.poses['id'] == f_no, ['qw', 'qx', 'qy', 'qz']].values[0]
-        quats = Quaternion(w=q_[0],x=q_[1],y=q_[2],z=q_[3])
-        transformation_matrix = quats.normalised.transformation_matrix
-        transformation_matrix[:3,:3] = transformation_matrix[:3,:3].T
-        transformation_matrix[:3,-1] = -self.poses.loc[self.poses['id'] == f_no, ['x', 'y', 'z']].values[0]
-        return transformation_matrix
-
-    def handle_node(self,fno):
-        rgb, depth, calib = self.get_images(fno=str(fno))
+    def fetch_data(self, frame_no, preprocess=True, object_detection=True):
+        rgb, depth, objectmask, calib, normalmap = self.fetch_images(frame_no=frame_no)
         intrinsic = np.reshape(calib['camera_matrix']['data'], (3, 3))
-        if rgb.shape[0] != depth.shape[0]:intrinsic = self._resize_cam_camtrix(intrinsic,scale=[depth.shape[1] / rgb.shape[1], depth.shape[0] / rgb.shape[0],1])
-        points, colors = o3d.depth2pts(depth=depth, intrinsic=intrinsic, rgb=rgb , roundup=4)
-        pcd = o3d._topcd(points=points, colors=colors)
-        pcd.estimate_normals()
-        pcd.orient_normals_towards_camera_location((0, 0, 0))
-        transform_mat = self._get_transformation_matrix(fno)
+        local_transform = np.reshape(calib['local_transform']['data'], (3, 4)).round(4)
+        local_transform = np.append(local_transform, [[0, 0, 0, 1]], axis=0)
+        # depth = ucv2.cv2.resize(depth , dsize=(rgb.shape[1],rgb.shape[0]) , interpolation=ucv2.cv2.INTER_NEAREST_EXACT)
+        if rgb.shape[0] != depth.shape[0]:
+            rgb2dpth_ratio = rgb.shape[0] / depth.shape[0]
+            rgb = ucv2.cv2.resize(rgb, dsize=(depth.shape[1], depth.shape[0]), interpolation=ucv2.cv2.INTER_NEAREST)
+            intrinsic = intrinsic / rgb2dpth_ratio
 
-        return pcd , transform_mat
+        if preprocess:
+            pcd, rgbd = u3d.images_topcd(depth_im=depth, rgb_im=rgb, intr=intrinsic, extr=local_transform)
+            mesh = u3d.pcd2mesh(pcd, mode='pivot')
+            # u3d.NormalViz([mesh])
+            # facets = u3d.get_facets(mesh)
+            return (rgb, depth, calib, normalmap, objectmask, rgbd, pcd, mesh)
+        return (rgb, depth, calib, normalmap, objectmask)
 
-    def estimate_rgb_(self ,src_img , targ_img):
-        initT = np.identity(4)
-        success = False
+    def fetch_pose(self, frame_no):
+        if 'qw' in self.poses.keys():
+            q = self.poses.loc[self.poses['id'] == frame_no, ['qw', 'qx', 'qy', 'qz']].values[0]
+            t = self.poses.loc[self.poses['id'] == frame_no, ['x', 'y', 'z']].values[0]
+            Tmatrix = _RTS.quats_to_Tmatrix(q)
+            Tmatrix[:3, 3] = t
+        elif 'tz' in self.poses.keys():
+            # this part is depreciated as of now
+            t1 = self.poses.loc[
+                self.poses['id'] == frame_no, ['r11', 'r12', 'r13', 'tx', 'r21', 'r22', 'r23', 'ty', 'r31', 'r32',
+                                               'r33', 'tz']].values[0]
+            Tmatrix = np.append(np.reshape(t1, (3, 4)), [0, 0, 0, 1], axis=0)
+        else:
+            Tmatrix = np.eye(4)
 
-        orb = cv2.ORB.create(scaleFactor=1.2,nlevels=8,edgeThreshold=31,
-                             firstLevel=0,WTA_K=2,scoreType=cv2.ORB_HARRIS_SCORE,nfeatures=100,patchSize=31)
-        [kp_s, des_s] = orb.detectAndCompute(src_img, None)
-        [kp_t, des_t] = orb.detectAndCompute(targ_img, None)
-        if not (len(kp_s) and len(kp_t)):
-            # no relation / correspondance
-            return success, initT
-        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-        matches = bf.match(des_s, des_t)
-        pts_src = np.asarray([kp_s[m.queryIdx].pt for m in matches])
-        pts_targ = np.asarray([kp_t[m.trainIdx].pt for m in matches])
-        k=1
+        return Tmatrix
 
-        return
-
-    def estimate_xyz_(self):
-        initT = np.identity(4)
-        return
-
-    def register(self, method='point2plane', voxel_size=0.01):
-        startf = 0
-        stopf = 15#len(self.n_frames)
-        skipf = 1
-        correction = np.zeros((4,4))
-        max_corres_dist = .2 #should be in 0.1 to 0.01 or lower for better
-        finalpcd = o3d._topcd()
-        for i_ in range(startf,stopf,skipf):
-            print(f"frame:{i_}/{(stopf - startf)}")
-            prevfno , currfno = self.n_frames[i_ - 1] , self.n_frames[i_]
-            curr_pcd, curr_Tfm = self.handle_node(currfno)
-            curr_pcd.transform(curr_Tfm)
-            if i_ == startf:
-                finalpcd = copy.deepcopy(curr_pcd)
-                continue
-            prev_pcd , prev_Tfm  = self.handle_node(prevfno)
-            #prev_Tfm = prev_Tfm if correction[0,0] == 0 else correction
-            prev_pcd.transform(prev_Tfm)
-            if i_ == stopf:
-                finalpcd += curr_pcd
+    def run(self, show=True, object_detection=True):
+        finalpcd = u3d._topcd()
+        finalmesh = u3d._tomesh()
+        #self.viz.create_window(window_name='Registration' , width=1080 , height=720)
+        #self.viz.add_geometry({'name':'finalpcd' , 'geometry':finalpcd})
+        #self.viz.add_geometry(finalmesh)
+        planerpatches = []
+        for fno in self.n_frames:
+            if fno > 10:
                 break
+            print(f"frameid:{fno}\r")
+            _, _, _, _, _, rgbd, pcd, mesh = self.fetch_data(frame_no=fno, object_detection=object_detection)
 
-            if 0:
-                method1 = o3d.o3d.pipelines.registration.TransformationEstimationPointToPlane()
-                criteria1 = o3d.o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=200)
-                reg_p2l = o3d.o3d.pipelines.registration.registration_icp(curr_pcd.voxel_down_sample(voxel_size),
-                                                                          finalpcd.voxel_down_sample(voxel_size),
-                                                                          max_correspondence_distance=max_corres_dist,
-                                                                          init=np.eye(4),
-                                                                          estimation_method=method1,
-                                                                          criteria=criteria1)
-                curr_pcd.transform(reg_p2l.transformation)
+            Tmatrix = self.fetch_pose(frame_no=fno)
+            pcd.transform(Tmatrix)
+            mesh.transform(Tmatrix)
 
-                print("correction:",reg_p2l.transformation - curr_Tfm)
-                correction = reg_p2l.transformation
 
-            if 1:
-                #o3d.NormalViz([copy.copy(curr_pcd).paint_uniform_color((0,0,0))] + [finalpcd])
-                method = o3d.o3d.pipelines.registration.TransformationEstimationForColoredICP()
-                criteria1 = o3d.o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=50)
-                reg_p2l = o3d.o3d.pipelines.registration.registration_colored_icp(
-                    copy.copy(curr_pcd).voxel_down_sample(voxel_size),
-                    copy.copy(finalpcd).voxel_down_sample(voxel_size),
-                    max_correspondence_distance=max_corres_dist,
-                    init=np.eye(4),
-                    estimation_method=method,
-                    criteria=criteria1)
-                #if len(np.asarray(reg_p2l.correspondence_set)):
-                curr_pcd.transform(reg_p2l.transformation)
-                correction = reg_p2l.transformation
+            _, planemesh, planeqns, _ = u3d.detectplanerpathes(pcd, minptsplane=250, scale=(1.2, 1.2, 0.01))
+            planerpatches.extend(planemesh)
+            finalmesh += mesh
+            finalpcd += pcd
 
-            finalpcd += curr_pcd
-            #o3d.NormalViz([finalpcd])
-        o3d.NormalViz([finalpcd])
+
+            if show:
+                u3d.NormalViz([finalmesh] + [u3d.axis_mesh(size=1)])
+        self.viz.destroy_window()
+        #u3d.NormalViz([finalmesh] + [u3d.axis_mesh(size=1)] + planerpatches)
         return

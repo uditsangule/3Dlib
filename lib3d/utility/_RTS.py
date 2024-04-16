@@ -1,10 +1,18 @@
 import numpy as np
-
-
 import pyquaternion as pyqr
-import vg
-
+from scipy.spatial.transform import Rotation as R
 xaxis , yaxis ,zaxis = np.eye(3)
+
+def quats_to_Tmatrix(q_):
+    quats = pyqr.Quaternion(w=q_[0], x=q_[1], y=q_[2], z=q_[3])
+    transformation_matrix = quats.normalised.transformation_matrix
+    return transformation_matrix
+
+def rotate(vector , around_axis=zaxis , theta = 10):
+    rotmat = R.from_rotvec(np.radians(theta)*around_axis)
+    return rotmat.apply(vector)
+def Tmatrix_to_quats(Tmatrix):
+    return pyqr.Quaternion(matrix=Tmatrix)
 
 def get_rotmat(vec1, vec2):
     """ Find the rotation matrix that aligns vec1 to vec2
